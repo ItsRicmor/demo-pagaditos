@@ -1,0 +1,12 @@
+{
+  "name": "pagaditoDemo",
+  "displayName": "pagaditoDemo",
+  "expo": {
+    "name": "pagaditoDemo",
+    "slug": "pagaditoDemo",
+    "version": "1.0.0",
+    "assetBundlePatterns": [
+      "**/*"
+    ]
+  }
+}
