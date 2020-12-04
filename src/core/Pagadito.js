@@ -14,12 +14,17 @@ class Pagadito {
     details;
     currency;
     allow_pending_payments;
-    extended_expiration
+    extended_expiration;
+    token_trans;
 
     constructor(uid, wsk) {
         this.uid = uid;
         this.wsk = wsk;
         this.config();
+        this.add_detail(1, "test1", 3, "");
+        this.add_detail(1, "test2", 2, "");
+        this.add_detail(2, "test3", 1, "");
+
     }
 
     connect = async () => {
@@ -28,53 +33,69 @@ class Pagadito {
             wsk: this.wsk,
             format_return: this.format_return
         };
-        const actionName ='connect';
+        const actionName = 'connect';
         const xml = this.createXmlRequest(actionName, params);
         this.response = await this.call(actionName, xml);
-        console.log(this.response);
+        console.log("connect reponse", this.response);
         if (this.get_rs_code() === 'PG1001') {
             return true;
         }
         return false;
     }
 
+    ern = () => {
+        return Math.floor(Math.random() * (2000 - 1000)) + 1000;
+    }
+
     exec_trans = async () => {
+        console.log('Details', JSON.stringify(this.details))
         if (this.get_rs_code() === 'PG1001') {
             const params = {
                 token: this.get_rs_value(),
-                ern: 1234,
-                amount: 6.25,
+                ern: this.ern(),
+                amount: this.calc_amount(),
                 details: JSON.stringify(this.details),
                 format_return: this.format_return,
                 currency: this.currency,
                 allow_pending_payments: this.allow_pending_payments,
                 extended_expiration: this.extended_expiration
             };
+            this.token_trans = this.get_rs_value();
             const actionName = 'exec_trans';
             const xml = this.createXmlRequest(actionName, params);
-            console.log('XML', xml);
+            // console.log('XML', xml);
             this.response = await this.call(actionName, xml);
-            console.log(this.response);
+            console.log("exec_trans response", this.response);
             if (this.get_rs_code() === 'PG1002') {
                 let result = await WebBrowser.openBrowserAsync(this.get_rs_value());
-                console.log({ result });
+                // console.log({ result });
                 return true;
             }
         }
         return false;
     }
 
-    get_status = () => {
-        const params = {
-            token: this.get_rs_value(),
-            ern: 1234,
-            amount: 6.25,
-            details: JSON.stringify(this.details),
-            format_return: this.format_return,
-            currency: this.currency,
-            allow_pending_payments: this.allow_pending_payments,
-            extended_expiration: this.extended_expiration
-        };
+    get_status = async () => {
+        if (this.get_rs_code() == 'PG1001') {
+            const params = {
+                token: this.get_rs_value(),
+                token_trans: this.token_trans,
+                format_return: this.format_return
+            };
+            const actionName = 'get_status';
+            const xml = this.createXmlRequest(actionName, params);
+            this.response = await this.call(actionName, xml);
+            console.log("get_status response", this.response);
+            if (this.get_rs_code() == "PG1003") {
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+        else {
+            return false;
+        }
     }
 
     call = async (actionName, xml) => {
@@ -100,42 +121,48 @@ class Pagadito {
         return `<?xml version='1.0' encoding='utf-8'?><soap:Envelope xmlns:soap='http://schemas.xmlsoap.org/soap/envelope/'><soap:Body><${actionName} xmlns='urn:https://sandbox.pagadito.com/comercios/wspg/charges'>${params}</${actionName}></soap:Body></soap:Envelope>`
     }
 
-
-
     config = () => {
         this.apipg = 'https://comercios.pagadito.com/apipg/charges.php?wsdl';
         this.apipg_sandbox = 'https://sandbox.pagadito.com/comercios/wspg/charges.php?wsdl';
         this.format_return = 'JSON';
         this.sandbox_mode = true;
-        this.details = [
-            {
-                'quantity': 1,
-                'description': 'Producto Xtest',
-                'price': 1.5,
-                'url_product': ''
-            }, {
-                'quantity': 1,
-                'description': 'Producto Ytest',
-                'price': 4,
-                'url_product': ''
-            }, {
-                'quantity': 1,
-                'description': 'Producto Ztest',
-                'price': 0.75,
-                'url_product': ''
-            }
-        ];
+        this.details = [];
         this.currency = 'USD';
         this.allow_pending_payments = 'FALSE';
         this.extended_expiration = 'FALSE';
+    }
+
+    calc_amount = () => {
+        let amount = 0;
+        for (const key in this.details) {
+            amount += this.details[key]['price'] * this.details[key]['quantity'];
+        };
+        return amount;
+    }
+
+    add_detail = (quantity, description, price, url_product = "") => {
+        this.details.push({
+            'quantity': quantity,
+            'description': description,
+            'price': price,
+            'url_product': url_product
+        });
     }
 
     get_rs_code = () => this.return_attr_response('code');
 
     get_rs_value = () => this.return_attr_response('value');
 
+    get_rs_status = () => this.return_attr_value('status');
+
+    get_rs_reference = () => this.return_attr_value('reference');
+
     return_attr_response = (name) => this.isObject(this.response) && this.response.hasOwnProperty(name) ?
         this.response[name] :
+        null;
+
+    return_attr_value = (name) => this.isObject(this.response['value']) && this.response['value'].hasOwnProperty(name) ?
+        this.response['value'][name] :
         null;
 
     isObject = (obj) => {

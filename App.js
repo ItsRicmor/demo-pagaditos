@@ -12,10 +12,18 @@ export default function App() {
     await PagaditoInstance.exec_trans();
   }
 
+  const _checkStatusAsync = async () => {
+    if (await PagaditoInstance.connect())
+      await PagaditoInstance.get_status();
+  }
+
   return (
     <View style={styles.container}>
       <Text>Open up App.js to start working on your app!</Text>
       <Button title="Open WebBrowser" onPress={_handlePressButtonAsync} />
+      <View style={styles.container}>
+        <Button title="Check status" onPress={_checkStatusAsync} />
+      </View>
       <StatusBar style="auto" />
     </View>
   );
@@ -23,9 +31,9 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flex: 0.3,
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-  },
+  }
 });
