@@ -64,6 +64,19 @@ class Pagadito {
         return false;
     }
 
+    get_status = () => {
+        const params = {
+            token: this.get_rs_value(),
+            ern: 1234,
+            amount: 6.25,
+            details: JSON.stringify(this.details),
+            format_return: this.format_return,
+            currency: this.currency,
+            allow_pending_payments: this.allow_pending_payments,
+            extended_expiration: this.extended_expiration
+        };
+    }
+
     call = async (actionName, xml) => {
         try {
             const url = this.sandbox_mode ? this.apipg_sandbox : this.apipg;
