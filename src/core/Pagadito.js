@@ -2,6 +2,7 @@ import axios from 'axios';
 import { parse } from 'fast-xml-parser';
 import * as WebBrowser from 'expo-web-browser';
 
+
 class Pagadito {
 
     static instance = null;
@@ -21,10 +22,9 @@ class Pagadito {
         this.uid = uid;
         this.wsk = wsk;
         this.config();
-        this.add_detail(1, "test1", 3, "");
-        this.add_detail(1, "test2", 2, "");
-        this.add_detail(2, "test3", 1, "");
-
+        // this.add_detail(1, "test1", 3, "");
+        // this.add_detail(1, "test2", 2, "");
+        // this.add_detail(2, "test3", 1, "");
     }
 
     connect = async () => {
@@ -48,8 +48,7 @@ class Pagadito {
     }
 
     exec_trans = async () => {
-        console.log('Details', JSON.stringify(this.details))
-        if (this.get_rs_code() === 'PG1001') {
+        if (await this.connect()) {
             const params = {
                 token: this.get_rs_value(),
                 ern: this.ern(),
@@ -67,8 +66,41 @@ class Pagadito {
             this.response = await this.call(actionName, xml);
             console.log("exec_trans response", this.response);
             if (this.get_rs_code() === 'PG1002') {
-                let result = await WebBrowser.openBrowserAsync(this.get_rs_value());
-                // console.log({ result });
+                let { type } = await WebBrowser.openAuthSessionAsync(this.get_rs_value());
+
+                console.log(type);
+                if (type == 'dismiss') {
+                    let isOk = await this.get_status();
+                    console.log()
+                    if (isOk) {
+                        switch (this.get_rs_status()) {
+                            case 'COMPLETED':
+                                console.log("Transacción completada");
+                                break;
+                            case 'REGISTERED':
+                                console.log('Transacción registrada');
+                                break;
+                            case 'VERIFYING':
+                                console.log('Trasacción verificada');
+                                break;
+                            case 'REVOKED':
+                                console.log('Trasacción revocada');
+                                break;
+                            case 'FAILED':
+                                console.log('Trasacción fallida');
+                                break;
+                            case 'CANCELED':
+                                console.log('Trasacción cancelada');
+                                break;
+                            case 'EXPIRED':
+                                console.log('Trasacción expirada');
+                                break;
+                        }
+                    }
+
+                }
+
+
                 return true;
             }
         }
@@ -76,7 +108,7 @@ class Pagadito {
     }
 
     get_status = async () => {
-        if (this.get_rs_code() == 'PG1001') {
+        if (await this.connect()) {
             const params = {
                 token: this.get_rs_value(),
                 token_trans: this.token_trans,
@@ -102,6 +134,7 @@ class Pagadito {
         try {
             const url = this.sandbox_mode ? this.apipg_sandbox : this.apipg;
             const response = await axios.post(url, xml, { headers: { 'Content-Type': 'text/xml', SOAPAction: '' } });
+            // console.log("Call", response.data)
             return this.decodeResponse(response, actionName);
         } catch (ex) {
             console.log(ex);
@@ -168,8 +201,6 @@ class Pagadito {
     isObject = (obj) => {
         return obj != null && obj.constructor.name === 'Object'
     }
-
-
 }
 
 export default Pagadito;
